@@ -1,0 +1,6 @@
+Bob
+Bob: hola
+Bob: como estas alice
+Tú: super bob 
+Tú: que bueno alice 
+Bob
