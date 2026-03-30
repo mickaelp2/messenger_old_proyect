@@ -277,13 +277,29 @@ def abrir_contactos(usuario):
 
     for contacto in todos:
         if contacto["email"] != usuario["email"]:
-            btn = ctk.CTkButton(scroll,
-                                text="● " + contacto["nombre"] + "  —  " + contacto["estado"],
-                                anchor="w", fg_color="transparent",
+
+            # Frame por contacto
+            frame_contacto = ctk.CTkFrame(scroll, fg_color="transparent")
+            frame_contacto.pack(fill="x", pady=3)
+
+            # Avatar del contacto
+            avatar_path_c = contacto.get("avatar", "avatares/avatar-1.png")
+            try:
+                avatar_c = redondear_imagen(avatar_path_c, 35)
+                ctk.CTkLabel(frame_contacto, image=avatar_c,
+                             text="", width=35, height=35).pack(side="left", padx=5)
+            except:
+                pass
+
+            # Botón con nombre y estado
+            btn = ctk.CTkButton(frame_contacto,
+                                text=contacto["nombre"] + "  —  " + contacto["estado"],
+                                anchor="w",
+                                fg_color="transparent",
                                 hover_color=("gray85", "gray25"),
                                 text_color=("black", "white"),
                                 command=lambda c=contacto: abrir_chat(usuario, c))
-            btn.pack(fill="x", pady=3)
+            btn.pack(side="left", fill="x", expand=True)
 
     contactos_win.mainloop()
 
