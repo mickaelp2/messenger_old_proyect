@@ -1,186 +1,58 @@
+import customtkinter as ctk
 import tkinter as tk
+from plyer import notification
+import pygame
+pygame.mixer.init()
+from PIL import Image
 import json
 import socket
 import threading
 import winsound
 import os
 
-ventana = tk.Tk()
+# Configuración visual global
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+# ========================
+# VENTANA DE LOGIN
+# ========================
+ventana = ctk.CTk()
 ventana.title("MSN Messenger")
-ventana.geometry("300x400")
-ventana.configure(bg="#0078D7")
+ventana.geometry("350x500")
+ventana.resizable(False, False)
 
-label = tk.Label(ventana, text="MSN Messenger",
-                 bg="#0078D7", fg="white",
-                 font=("Arial", 18, "bold"))
-label.pack(pady=30)
+# Logo
+try:
+    logo_img = ctk.CTkImage(Image.open("MNS LOGO.png"), size=(100, 100))
+    logo_label = ctk.CTkLabel(ventana, image=logo_img, text="")
+    logo_label.pack(pady=20)
+except:
+    pass
 
-label_email = tk.Label(ventana, text="Correo electrónico:",
-                       bg="#0078D7", fg="white")
-label_email.pack()
+# Título
+ctk.CTkLabel(ventana, text="MSN Messenger",
+             font=ctk.CTkFont(size=22, weight="bold")).pack(pady=5)
 
-entry_email = tk.Entry(ventana, width=30)
-entry_email.pack(pady=5)
+ctk.CTkLabel(ventana, text="Inicia sesión con tu cuenta",
+             font=ctk.CTkFont(size=12),
+             text_color="gray").pack(pady=2)
 
-label_pass = tk.Label(ventana, text="Contraseña:",
-                      bg="#0078D7", fg="white")
-label_pass.pack()
+# Campos
+entry_email = ctk.CTkEntry(ventana, width=280,
+                            placeholder_text="Correo electrónico",
+                            height=40, corner_radius=10)
+entry_email.pack(pady=10)
 
-entry_pass = tk.Entry(ventana, width=30, show="*")
+entry_pass = ctk.CTkEntry(ventana, width=280,
+                           placeholder_text="Contraseña",
+                           show="*", height=40, corner_radius=10)
 entry_pass.pack(pady=5)
 
-boton = tk.Button(ventana, text="Entrar", width=20)
-boton.pack(pady=20)
-
-
-def abrir_chat(usuario, contacto):
-    chat = tk.Toplevel()
-    chat.title("Chat con " + contacto["nombre"])
-    chat.geometry("350x450")
-    chat.configure(bg="white")
-
-    tk.Label(chat,
-             text="Conversación con " + contacto["nombre"],
-             bg="#0078D7", fg="white",
-             font=("Arial", 11, "bold")).pack(fill="x", pady=5)
-
-    area = tk.Text(chat, height=18, width=40,
-    
-                   state="disabled", bg="#f5f5f5",
-                   font=("Arial", 10))
-    area.pack(pady=5, padx=10)
-     # Cargar historial anterior
-    nombre_archivo = "chat_" + usuario["nombre"] + "_" + contacto["nombre"] + ".txt"
-    
-    if os.path.exists(nombre_archivo):
-        with open(nombre_archivo, "r") as f:
-            historial = f.read()
-        area.config(state="normal")
-        area.insert("end", historial)
-        area.see("end")
-        area.config(state="disabled")
-
-    # Indicador "Escribiendo..." — aparece debajo del área de mensajes
-    label_escribiendo = tk.Label(chat, text="",
-                                  bg="white", fg="gray",
-                                  font=("Arial", 9, "italic"))
-    label_escribiendo.pack()
-
-    frame = tk.Frame(chat, bg="white")
-    frame.pack(fill="x", padx=10, pady=5)
-
-    entry_msg = tk.Entry(frame, width=30, font=("Arial", 10))
-    entry_msg.pack(side="left", padx=5)
-
-    # Conectar al servidor
-    try:
-        cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        cliente.connect(("127.0.0.1", 5555))
-        cliente.send(usuario["nombre"].encode())
-    except:
-        area.config(state="normal")
-        area.insert("end", "⚠ No se pudo conectar al servidor\n")
-        area.config(state="disabled")
-        return
-
-    # Recibir mensajes en hilo separado
-    def recibir():
-        while True:
-            try:
-                mensaje = cliente.recv(1024).decode()
-                if mensaje.startswith("ESCRIBIENDO:"):
-                    # Es una notificación de que alguien está escribiendo
-                    nombre_digitando = mensaje.split(":")[1]
-                    label_escribiendo.config(text=nombre_digitando + " está escribiendo...")
-                    # Borra el indicador después de 2 segundos
-                    chat.after(2000, lambda: label_escribiendo.config(text=""))
-                else:
-                    # Es un mensaje normal
-                    label_escribiendo.config(text="")
-                     # Sonido al recibir mensaje ← línea nueva
-                    winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS)
-                    area.config(state="normal")
-                    area.insert("end", mensaje + "\n")
-                    area.see("end")
-                    area.config(state="disabled")
-                   # Guardar en historial — solo mensajes reales
-                    if not mensaje.startswith("ESCRIBIENDO:"):
-                        with open(nombre_archivo, "a") as f:
-                            f.write(mensaje + "\n")
-            except:
-                break
-
-    hilo = threading.Thread(target=recibir)
-    hilo.daemon = True
-    hilo.start()
-
-    # Detectar cuando el usuario está escribiendo
-    def esta_escribiendo(event):
-        try:
-            cliente.send(("ESCRIBIENDO:" + usuario["nombre"]).encode())
-        except:
-            pass
-
-    entry_msg.bind("<KeyPress>", esta_escribiendo)
-
-    def enviar():
-        mensaje = entry_msg.get()
-        if mensaje != "":
-            try:
-                cliente.send((usuario["nombre"] + ": " + mensaje).encode())
-                area.config(state="normal")
-                area.insert("end", "Tú: " + mensaje + "\n")
-                area.see("end")
-                area.config(state="disabled")
-                entry_msg.delete(0, "end")
-                # Guardar en historial ← línea nueva
-                with open(nombre_archivo, "a") as f:
-                    f.write("Tú: " + mensaje + "\n")
-            except:
-                area.config(state="normal")
-                area.insert("end", "⚠ Error al enviar\n")
-                area.config(state="disabled")
-
-    tk.Button(frame, text="Enviar", command=enviar,
-              bg="#0078D7", fg="white").pack(side="left")
-
-    entry_msg.bind("<Return>", lambda e: enviar())
-
-
-def abrir_contactos(usuario):
-    contactos = tk.Tk()
-    contactos.title("MSN Messenger — Contactos")
-    contactos.geometry("250x500")
-    contactos.configure(bg="#0078D7")
-
-    tk.Label(contactos,
-             text=usuario["nombre"],
-             bg="#0078D7", fg="white",
-             font=("Arial", 14, "bold")).pack(pady=10)
-
-    tk.Label(contactos,
-             text=usuario["estado"],
-             bg="#0078D7", fg="white",
-             font=("Arial", 10)).pack()
-
-    tk.Label(contactos, text="─── Contactos ───",
-             bg="#0078D7", fg="white").pack(pady=10)
-
-    with open("usuarios.json", "r") as archivo:
-        todos = json.load(archivo)
-
-    for contacto in todos:
-        if contacto["email"] != usuario["email"]:
-            btn = tk.Button(contactos,
-                            text="● " + contacto["nombre"] + " — " + contacto["estado"],
-                            bg="#0078D7", fg="white",
-                            font=("Arial", 11),
-                            border=0,
-                            cursor="hand2",
-                            command=lambda c=contacto: abrir_chat(usuario, c))
-            btn.pack(pady=3)
-
-    contactos.mainloop()
+# Label resultado
+label_resultado = ctk.CTkLabel(ventana, text="", text_color="red",
+                                font=ctk.CTkFont(size=11))
+label_resultado.pack(pady=2)
 
 
 def iniciar_sesion():
@@ -197,15 +69,382 @@ def iniciar_sesion():
                 abrir_contactos(usuario)
                 return
             else:
-                label_resultado.config(text="Contraseña incorrecta", fg="red")
+                label_resultado.configure(text="Contraseña incorrecta")
                 return
 
-    label_resultado.config(text="Email no registrado", fg="red")
+    label_resultado.configure(text="Email no registrado")
 
 
-boton.config(command=iniciar_sesion)
+def abrir_registro():
+    registro = ctk.CTkToplevel(ventana)
+    registro.title("Crear cuenta")
+    registro.geometry("350x450")
+    registro.resizable(False, False)
 
-label_resultado = tk.Label(ventana, text="", bg="#0078D7")
-label_resultado.pack()
+    ctk.CTkLabel(registro, text="Crear cuenta",
+                 font=ctk.CTkFont(size=20, weight="bold")).pack(pady=20)
+
+    entry_nombre = ctk.CTkEntry(registro, width=280,
+                                 placeholder_text="Nombre",
+                                 height=40, corner_radius=10)
+    entry_nombre.pack(pady=8)
+
+    entry_email_r = ctk.CTkEntry(registro, width=280,
+                                  placeholder_text="Correo electrónico",
+                                  height=40, corner_radius=10)
+    entry_email_r.pack(pady=8)
+
+    entry_pass_r = ctk.CTkEntry(registro, width=280,
+                                 placeholder_text="Contraseña",
+                                 show="*", height=40, corner_radius=10)
+    entry_pass_r.pack(pady=8)
+
+    entry_pass_r2 = ctk.CTkEntry(registro, width=280,
+                                  placeholder_text="Confirmar contraseña",
+                                  show="*", height=40, corner_radius=10)
+    entry_pass_r2.pack(pady=8)
+
+    label_res = ctk.CTkLabel(registro, text="", text_color="red")
+    label_res.pack(pady=2)
+
+    def crear_cuenta():
+        nombre = entry_nombre.get()
+        email = entry_email_r.get()
+        password = entry_pass_r.get()
+        password2 = entry_pass_r2.get()
+
+        if nombre == "" or email == "" or password == "":
+            label_res.configure(text="Completa todos los campos")
+            return
+
+        if password != password2:
+            label_res.configure(text="Las contraseñas no coinciden")
+            return
+
+        with open("usuarios.json", "r") as archivo:
+            datos = json.load(archivo)
+
+        for usuario in datos:
+            if usuario["email"] == email:
+                label_res.configure(text="Ese email ya está registrado")
+                return
+
+        nuevo = {"nombre": nombre, "email": email,
+                 "password": password, "estado": "Online"}
+        datos.append(nuevo)
+
+        with open("usuarios.json", "w") as archivo:
+            json.dump(datos, archivo)
+
+        label_res.configure(text="¡Cuenta creada!", text_color="green")
+        registro.after(1500, registro.destroy)
+
+    ctk.CTkButton(registro, text="Crear cuenta", width=280, height=40,
+                  corner_radius=10, command=crear_cuenta).pack(pady=10)
+
+
+# Botones
+ctk.CTkButton(ventana, text="Iniciar sesión", width=280, height=40,
+              corner_radius=10, command=iniciar_sesion).pack(pady=10)
+
+ctk.CTkButton(ventana, text="Crear cuenta", width=280, height=40,
+              corner_radius=10, fg_color="transparent",
+              border_width=1, command=abrir_registro).pack(pady=2)
+
+def elegir_avatar(usuario, callback):
+    win = ctk.CTkToplevel()
+    win.title("Elige tu avatar")
+    win.geometry("350x400")
+    win.resizable(False, False)
+    win.grab_set()      # bloquea las otras ventanas
+    win.focus_force()   # fuerza el foco en esta ventana
+
+    ctk.CTkLabel(win, text="Elige tu avatar",
+                 font=ctk.CTkFont(size=16, weight="bold")).pack(pady=15)
+
+    grid = ctk.CTkFrame(win)
+    grid.pack(padx=20, pady=5)
+
+    def seleccionar(path):
+        with open("usuarios.json", "r") as f:
+            datos = json.load(f)
+        for u in datos:
+            if u["email"] == usuario["email"]:
+                u["avatar"] = path
+                break
+        with open("usuarios.json", "w") as f:
+            json.dump(datos, f)
+        usuario["avatar"] = path
+        callback(path)
+        win.destroy()
+
+    def redondear_avatar(path, size):
+        img = Image.open(path).resize((size, size))
+        mascara = Image.new("L", (size, size), 0)
+        from PIL import ImageDraw
+        draw = ImageDraw.Draw(mascara)
+        draw.ellipse((0, 0, size, size), fill=255)
+        img_redonda = Image.new("RGBA", (size, size))
+        img_redonda.paste(img, mask=mascara)
+        return ctk.CTkImage(img_redonda, size=(size, size))
+
+    for i in range(9):
+        path = f"avatares/avatar-{i+1}.png"
+        try:
+            img = redondear_avatar(path, 80)
+            btn = ctk.CTkButton(grid, image=img, text="",
+                                width=80, height=80,
+                                fg_color="transparent",
+                                hover_color=("gray80", "gray30"),
+                                command=lambda p=path: seleccionar(p))
+            btn.grid(row=i//3, column=i%3, padx=8, pady=8)
+        except:
+            pass
+
+    win.mainloop()
+
+# ========================
+# VENTANA DE CONTACTOS
+# ========================
+def abrir_contactos(usuario):
+    contactos_win = ctk.CTk()
+    contactos_win.title("MSN Messenger")
+    contactos_win.geometry("280x550")
+    contactos_win.minsize(280, 400)
+
+   # Encabezado
+    header = ctk.CTkFrame(contactos_win, corner_radius=0, height=90)
+    header.pack(fill="x")
+    header.pack_propagate(False)
+
+    # Avatar a la izquierda
+    avatar_path = usuario.get("avatar", "avatares/avatar-1.png")
+
+    def redondear_imagen(path, size):
+        img = Image.open(path).resize((size, size))
+        mascara = Image.new("L", (size, size), 0)
+        from PIL import ImageDraw
+        draw = ImageDraw.Draw(mascara)
+        draw.ellipse((0, 0, size, size), fill=255)
+        img_redonda = Image.new("RGBA", (size, size))
+        img_redonda.paste(img, mask=mascara)
+        return ctk.CTkImage(img_redonda, size=(size, size))
+
+    try:
+        avatar_img = redondear_imagen(avatar_path, 60)
+    except:
+        avatar_img = None
+
+    avatar_label = ctk.CTkLabel(header, image=avatar_img,
+                                 text="", width=60, height=60)
+    avatar_label.pack(side="left", padx=10, pady=15)
+
+    # Info en el centro
+    info = ctk.CTkFrame(header, fg_color="transparent")
+    info.pack(side="left", fill="y", pady=10, expand=True)
+
+    ctk.CTkLabel(info, text=usuario["nombre"],
+                 font=ctk.CTkFont(size=15, weight="bold")).pack(anchor="w")
+
+    estado_var = ctk.StringVar(value=usuario["estado"])
+    estado_menu = ctk.CTkOptionMenu(info,
+                                     values=["Online", "Ocupado", "Ausente", "Desconectado"],
+                                     variable=estado_var, width=150)
+    estado_menu.pack(anchor="w", pady=3)
+
+    # Botón ⚙ a la derecha
+    def actualizar_avatar(path):
+        try:
+            nueva_img = redondear_imagen(path, 60)
+            avatar_label.configure(image=nueva_img)
+        except:
+            pass
+
+    ctk.CTkButton(header, text="⚙", width=35, height=35,
+                  corner_radius=8,
+                  command=lambda: elegir_avatar(usuario, actualizar_avatar)).pack(side="right", padx=10)
+
+    # Lista de contactos
+    ctk.CTkLabel(contactos_win, text="── Contactos ──",
+                 text_color="gray",
+                 font=ctk.CTkFont(size=11)).pack(pady=10)
+
+    scroll = ctk.CTkScrollableFrame(contactos_win)
+    scroll.pack(fill="both", expand=True, padx=10, pady=5)
+
+    with open("usuarios.json", "r") as archivo:
+        todos = json.load(archivo)
+
+    for contacto in todos:
+        if contacto["email"] != usuario["email"]:
+            btn = ctk.CTkButton(scroll,
+                                text="● " + contacto["nombre"] + "  —  " + contacto["estado"],
+                                anchor="w", fg_color="transparent",
+                                hover_color=("gray85", "gray25"),
+                                text_color=("black", "white"),
+                                command=lambda c=contacto: abrir_chat(usuario, c))
+            btn.pack(fill="x", pady=3)
+
+    contactos_win.mainloop()
+
+
+# ========================
+# VENTANA DE CHAT
+# ========================
+def abrir_chat(usuario, contacto):
+    chat = ctk.CTkToplevel()
+    chat.title("Chat con " + contacto["nombre"])
+    chat.geometry("400x500")
+    chat.minsize(350, 400)
+
+   # Encabezado chat
+    header = ctk.CTkFrame(chat, corner_radius=0, height=55)
+    header.pack(fill="x")
+    header.pack_propagate(False)
+
+    # Avatar del contacto
+    avatar_contacto = contacto.get("avatar", "avatares/avatar-1.png")
+    try:
+        from PIL import ImageDraw
+        img = Image.open(avatar_contacto).resize((40, 40))
+        mascara = Image.new("L", (40, 40), 0)
+        draw = ImageDraw.Draw(mascara)
+        draw.ellipse((0, 0, 40, 40), fill=255)
+        img_redonda = Image.new("RGBA", (40, 40))
+        img_redonda.paste(img, mask=mascara)
+        avatar_chat = ctk.CTkImage(img_redonda, size=(40, 40))
+        ctk.CTkLabel(header, image=avatar_chat, text="",
+                     width=40, height=40).pack(side="left", padx=10, pady=7)
+    except:
+        pass
+
+    ctk.CTkLabel(header,
+                 text=contacto["nombre"],
+                 font=ctk.CTkFont(size=14, weight="bold")).pack(side="left", pady=7)
+
+    # Área de mensajes
+    area = ctk.CTkTextbox(chat, state="disabled",
+                           font=ctk.CTkFont(size=12))
+    area.pack(fill="both", expand=True, padx=10, pady=10)
+
+    # Indicador escribiendo
+    label_escribiendo = ctk.CTkLabel(chat, text="",
+                                      text_color="gray",
+                                      font=ctk.CTkFont(size=10, slant="italic"))
+    label_escribiendo.pack(pady=2)
+
+    # Frame inferior
+    frame = ctk.CTkFrame(chat, corner_radius=0, height=55)
+    frame.pack(fill="x")
+    frame.pack_propagate(False)
+
+    entry_msg = ctk.CTkEntry(frame, placeholder_text="Escribe un mensaje...",
+                              height=38, corner_radius=10)
+    entry_msg.pack(side="left", fill="x", expand=True, padx=10, pady=8)
+
+    # Conectar al servidor
+    try:
+        cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        cliente.connect(("127.0.0.1", 5555))
+        cliente.send(usuario["nombre"].encode())
+    except:
+        area.configure(state="normal")
+        area.insert("end", "⚠ No se pudo conectar al servidor\n")
+        area.configure(state="disabled")
+        return
+
+    # Cargar historial
+    nombre_archivo = "Historial/chat_" + usuario["nombre"] + "_" + contacto["nombre"] + ".txt"
+    if os.path.exists(nombre_archivo):
+        with open(nombre_archivo, "r") as f:
+            historial = f.read()
+        area.configure(state="normal")
+        area.insert("end", historial)
+        area.see("end")
+        area.configure(state="disabled")
+
+    def recibir():
+        while True:
+            try:
+                mensaje = cliente.recv(1024).decode()
+                if mensaje.startswith("ESCRIBIENDO:"):
+                    nombre_digitando = mensaje.split(":")[1]
+                    label_escribiendo.configure(text=nombre_digitando + " está escribiendo...")
+                    chat.after(2000, lambda: label_escribiendo.configure(text=""))
+                else:
+                    label_escribiendo.configure(text="")
+                    
+                    # Verificar si la ventana está activa
+                    try:
+                        ventana_activa = chat.focus_get() is not None
+                    except:
+                        ventana_activa = False
+                    
+                    # Notificación y sonido siempre que llega mensaje
+                    try:
+                        notification.notify(
+                            title="MSN Messenger — " + contacto["nombre"],
+                            message=mensaje,
+                            app_name="MSN Messenger",
+                            timeout=4
+                        )
+                    except:
+                        pass
+                        # Por esto
+                    try:
+                        pygame.mixer.music.load("notificacion.mp3")
+                        pygame.mixer.music.play()
+                    except:
+                        winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS)
+                        pass
+
+                    area.configure(state="normal")
+                    area.insert("end", mensaje + "\n")
+                    area.see("end")
+                    area.configure(state="disabled")
+                    if not mensaje.startswith("ESCRIBIENDO:"):
+                        with open(nombre_archivo, "a") as f:
+                            f.write(mensaje + "\n")
+            except:
+                break
+
+    hilo = threading.Thread(target=recibir)
+    hilo.daemon = True
+    hilo.start()
+
+    def esta_escribiendo(event):
+        try:
+            cliente.send(("ESCRIBIENDO:" + usuario["nombre"]).encode())
+        except:
+            pass
+
+    entry_msg.bind("<KeyPress>", esta_escribiendo)
+
+    def enviar():
+        mensaje = entry_msg.get()
+        if mensaje != "":
+            try:
+                cliente.send((usuario["nombre"] + ": " + mensaje).encode())
+                area.configure(state="normal")
+                area.insert("end", "Tú: " + mensaje + "\n")
+                area.see("end")
+                area.configure(state="disabled")
+                entry_msg.delete(0, "end")
+                with open(nombre_archivo, "a") as f:
+                    f.write("Tú: " + mensaje + "\n")
+            except:
+                area.configure(state="normal")
+                area.insert("end", "⚠ Error al enviar\n")
+                area.configure(state="disabled")
+
+    ctk.CTkButton(frame, text="Enviar", width=80, height=38,
+                  corner_radius=10, command=enviar).pack(side="left", padx=5, pady=8)
+
+    entry_msg.bind("<Return>", lambda e: enviar())
+
+entry_pass.bind("<Return>", lambda e: iniciar_sesion())
+entry_email.bind("<Return>", lambda e: iniciar_sesion())
 
 ventana.mainloop()
+
+
