@@ -297,7 +297,7 @@ def abrir_chat(usuario, contacto):
     chat.geometry("400x500")
     chat.minsize(350, 400)
 
-   # Encabezado chat
+    # Encabezado chat
     header = ctk.CTkFrame(chat, corner_radius=0, height=55)
     header.pack(fill="x")
     header.pack_propagate(False)
@@ -342,6 +342,47 @@ def abrir_chat(usuario, contacto):
                               height=38, corner_radius=10)
     entry_msg.pack(side="left", fill="x", expand=True, padx=10, pady=8)
 
+    # Panel de emojis
+    emojis = ["😊", "😂", "😢", "😡", "😎",
+              "❤️", "👍", "🎉", "🔥", "💯",
+              "😴", "🤔", "😅", "🥳", "👋",
+              "😘", "🤣", "😭", "😤", "🤩"]
+
+    def abrir_emojis():
+        panel = ctk.CTkToplevel(chat)
+        panel.title("")
+        panel.geometry("250x200")
+        panel.resizable(False, False)
+        panel.attributes("-topmost", True)
+        panel.grab_set()
+        panel.focus_force()
+
+        grid_emojis = ctk.CTkFrame(panel)
+        grid_emojis.pack(fill="both", expand=True, padx=10, pady=10)
+
+        def insertar_emoji(emoji):
+            entry_msg.insert("end", emoji)
+            panel.destroy()
+            entry_msg.focus_set()
+
+        for i, emoji in enumerate(emojis):
+            btn = ctk.CTkButton(grid_emojis,
+                                text=emoji,
+                                width=40, height=40,
+                                font=ctk.CTkFont(size=18),
+                                fg_color="transparent",
+                                hover_color=("gray80", "gray30"),
+                                command=lambda e=emoji: insertar_emoji(e))
+            btn.grid(row=i//5, column=i%5, padx=3, pady=3)
+
+    # Botón emoji
+    ctk.CTkButton(frame, text="😊", width=40, height=38,
+                  corner_radius=10,
+                  font=ctk.CTkFont(size=18),
+                  fg_color="transparent",
+                  hover_color=("gray80", "gray30"),
+                  command=abrir_emojis).pack(side="left", padx=2, pady=8)
+
     # Conectar al servidor
     try:
         cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -373,14 +414,6 @@ def abrir_chat(usuario, contacto):
                     chat.after(2000, lambda: label_escribiendo.configure(text=""))
                 else:
                     label_escribiendo.configure(text="")
-                    
-                    # Verificar si la ventana está activa
-                    try:
-                        ventana_activa = chat.focus_get() is not None
-                    except:
-                        ventana_activa = False
-                    
-                    # Notificación y sonido siempre que llega mensaje
                     try:
                         notification.notify(
                             title="MSN Messenger — " + contacto["nombre"],
@@ -390,21 +423,17 @@ def abrir_chat(usuario, contacto):
                         )
                     except:
                         pass
-                        # Por esto
                     try:
                         pygame.mixer.music.load("notificacion.mp3")
                         pygame.mixer.music.play()
                     except:
                         winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS)
-                        pass
-
                     area.configure(state="normal")
                     area.insert("end", mensaje + "\n")
                     area.see("end")
                     area.configure(state="disabled")
-                    if not mensaje.startswith("ESCRIBIENDO:"):
-                        with open(nombre_archivo, "a") as f:
-                            f.write(mensaje + "\n")
+                    with open(nombre_archivo, "a") as f:
+                        f.write(mensaje + "\n")
             except:
                 break
 
@@ -413,12 +442,11 @@ def abrir_chat(usuario, contacto):
     hilo.start()
 
     def esta_escribiendo(event):
-        try:
-            cliente.send(("ESCRIBIENDO:" + usuario["nombre"]).encode())
-        except:
-            pass
-
-    entry_msg.bind("<KeyPress>", esta_escribiendo)
+        if event.keysym != "Return":
+            try:
+                cliente.send(("ESCRIBIENDO:" + usuario["nombre"]).encode())
+            except:
+                pass
 
     def enviar():
         mensaje = entry_msg.get()
@@ -440,11 +468,8 @@ def abrir_chat(usuario, contacto):
     ctk.CTkButton(frame, text="Enviar", width=80, height=38,
                   corner_radius=10, command=enviar).pack(side="left", padx=5, pady=8)
 
+    entry_msg.bind("<KeyPress>", esta_escribiendo)
     entry_msg.bind("<Return>", lambda e: enviar())
-
-entry_pass.bind("<Return>", lambda e: iniciar_sesion())
-entry_email.bind("<Return>", lambda e: iniciar_sesion())
-
 ventana.mainloop()
 
 
