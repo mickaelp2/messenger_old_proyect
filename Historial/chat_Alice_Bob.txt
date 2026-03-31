@@ -1,14 +1,1 @@
-Tú: hola
-Bob
-Tú: hola
-Tú: como estas 
-Bob: super xd
-Bob: que bueno alice 
-Bob: entendido
-Bob: que bueno hermano
-Bob: excelente
-Tú: que bueno bor 
-Tú: hola
-Bob: hola
-Alice
-Bob
+Tú: hola bob que tal xd

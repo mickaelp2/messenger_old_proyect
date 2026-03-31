@@ -11,7 +11,7 @@ def manejar_cliente(conn, addr):
     print("Cliente conectado:", addr)
     while True:
         try:
-            mensaje = conn.recv(1024).decode()
+            mensaje = conn.recv(4096).decode("utf-8")
             if mensaje:
                 print("Mensaje recibido:", mensaje)
                 broadcast(mensaje, conn)

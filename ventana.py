@@ -264,57 +264,178 @@ def abrir_contactos(usuario):
                   corner_radius=8,
                   command=lambda: elegir_avatar(usuario, actualizar_avatar)).pack(side="right", padx=10)
 
+def abrir_contactos(usuario):
+    contactos_win = ctk.CTk()
+    contactos_win.title("MSN Messenger")
+    contactos_win.geometry("280x550")
+    contactos_win.minsize(280, 400)
+
+    # Encabezado
+    header = ctk.CTkFrame(contactos_win, corner_radius=0, height=90)
+    header.pack(fill="x")
+    header.pack_propagate(False)
+
+    avatar_path = usuario.get("avatar", "avatares/avatar-1.png")
+
+    def redondear_imagen(path, size):
+        img = Image.open(path).resize((size, size))
+        mascara = Image.new("L", (size, size), 0)
+        from PIL import ImageDraw
+        draw = ImageDraw.Draw(mascara)
+        draw.ellipse((0, 0, size, size), fill=255)
+        img_redonda = Image.new("RGBA", (size, size))
+        img_redonda.paste(img, mask=mascara)
+        return ctk.CTkImage(img_redonda, size=(size, size))
+
+    try:
+        avatar_img = redondear_imagen(avatar_path, 60)
+    except:
+        avatar_img = None
+
+    avatar_label = ctk.CTkLabel(header, image=avatar_img,
+                                 text="", width=60, height=60)
+    avatar_label.pack(side="left", padx=10, pady=15)
+
+    info = ctk.CTkFrame(header, fg_color="transparent")
+    info.pack(side="left", fill="y", pady=10, expand=True)
+
+    ctk.CTkLabel(info, text=usuario["nombre"],
+                 font=ctk.CTkFont(size=15, weight="bold")).pack(anchor="w")
+
+    estado_var = ctk.StringVar(value=usuario["estado"])
+    estado_menu = ctk.CTkOptionMenu(info,
+                                     values=["Online", "Ocupado", "Ausente", "Desconectado"],
+                                     variable=estado_var, width=150)
+    estado_menu.pack(anchor="w", pady=3)
+
+    def actualizar_avatar(path):
+        try:
+            nueva_img = redondear_imagen(path, 60)
+            avatar_label.configure(image=nueva_img)
+        except:
+            pass
+
+    ctk.CTkButton(header, text="⚙", width=35, height=35,
+                  corner_radius=8,
+                  command=lambda: elegir_avatar(usuario, actualizar_avatar)).pack(side="right", padx=10)
+
+    # Botón agregar contacto
+    def abrir_agregar_contacto():
+        win = ctk.CTkToplevel(contactos_win)
+        win.title("Agregar contacto")
+        win.geometry("300x200")
+        win.resizable(False, False)
+        win.grab_set()
+        win.focus_force()
+
+        ctk.CTkLabel(win, text="Agregar contacto",
+                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=15)
+
+        entry_email_c = ctk.CTkEntry(win, width=250,
+                                      placeholder_text="Email del contacto",
+                                      height=38, corner_radius=10)
+        entry_email_c.pack(pady=8)
+
+        label_res = ctk.CTkLabel(win, text="", text_color="red")
+        label_res.pack()
+
+        def agregar():
+            email_nuevo = entry_email_c.get()
+
+            with open("usuarios.json", "r") as f:
+                datos = json.load(f)
+
+            existe = False
+            for u in datos:
+                if u["email"] == email_nuevo:
+                    existe = True
+                    break
+
+            if not existe:
+                label_res.configure(text="Usuario no encontrado")
+                return
+
+            if email_nuevo == usuario["email"]:
+                label_res.configure(text="No puedes agregarte a ti mismo")
+                return
+
+            for u in datos:
+                if u["email"] == usuario["email"]:
+                    if email_nuevo in u["contactos"]:
+                        label_res.configure(text="Ya es tu contacto")
+                        return
+                    u["contactos"].append(email_nuevo)
+                    break
+
+            with open("usuarios.json", "w") as f:
+                json.dump(datos, f)
+
+            label_res.configure(text="¡Contacto agregado!", text_color="green")
+            win.after(1500, lambda: [win.destroy(), actualizar_contactos()])
+
+        ctk.CTkButton(win, text="Agregar", width=250, height=38,
+                      corner_radius=10, command=agregar).pack(pady=10)
+
+    ctk.CTkButton(contactos_win, text="+ Agregar contacto",
+                  width=200, height=35, corner_radius=10,
+                  command=abrir_agregar_contacto).pack(pady=5)
+
     # Lista de contactos
     ctk.CTkLabel(contactos_win, text="── Contactos ──",
                  text_color="gray",
-                 font=ctk.CTkFont(size=11)).pack(pady=10)
+                 font=ctk.CTkFont(size=11)).pack(pady=5)
 
     scroll = ctk.CTkScrollableFrame(contactos_win)
     scroll.pack(fill="both", expand=True, padx=10, pady=5)
 
-    with open("usuarios.json", "r") as archivo:
-        todos = json.load(archivo)
+    def actualizar_contactos():
+        for widget in scroll.winfo_children():
+            widget.destroy()
 
-    for contacto in todos:
-        if contacto["email"] != usuario["email"]:
+        with open("usuarios.json", "r") as archivo:
+            todos = json.load(archivo)
 
-            frame_contacto = ctk.CTkFrame(scroll, fg_color="transparent")
-            frame_contacto.pack(fill="x", pady=3)
+        mis_contactos = []
+        for u in todos:
+            if u["email"] == usuario["email"]:
+                mis_contactos = u.get("contactos", [])
+                break
 
-            # Avatar
-            avatar_path_c = contacto.get("avatar", "avatares/avatar-1.png")
-            try:
-                avatar_c = redondear_imagen(avatar_path_c, 35)
-                ctk.CTkLabel(frame_contacto, image=avatar_c,
-                             text="", width=35, height=35).pack(side="left", padx=5)
-            except:
-                pass
+        for contacto in todos:
+            if contacto["email"] in mis_contactos:
+                frame_contacto = ctk.CTkFrame(scroll, fg_color="transparent")
+                frame_contacto.pack(fill="x", pady=3)
 
-            # Color según estado
-            colores = {
-                "Online":       "#00cc44",
-                "Ocupado":      "#ff3333",
-                "Ausente":      "#ffaa00",
-                "Desconectado": "#888888"
-            }
-            color = colores.get(contacto["estado"], "#888888")
+                avatar_path_c = contacto.get("avatar", "avatares/avatar-1.png")
+                try:
+                    avatar_c = redondear_imagen(avatar_path_c, 35)
+                    ctk.CTkLabel(frame_contacto, image=avatar_c,
+                                 text="", width=35, height=35).pack(side="left", padx=5)
+                except:
+                    pass
 
-            ctk.CTkLabel(frame_contacto, text="●",
-                         text_color=color,
-                         font=ctk.CTkFont(size=12),
-                         width=15).pack(side="left")
+                colores = {
+                    "Online":       "#00cc44",
+                    "Ocupado":      "#ff3333",
+                    "Ausente":      "#ffaa00",
+                    "Desconectado": "#888888"
+                }
+                color = colores.get(contacto["estado"], "#888888")
+                ctk.CTkLabel(frame_contacto, text="●",
+                             text_color=color,
+                             font=ctk.CTkFont(size=12),
+                             width=15).pack(side="left")
 
-            # Botón nombre y estado
-            btn = ctk.CTkButton(frame_contacto,
-                                text=contacto["nombre"] ,
-                                anchor="w",
-                                fg_color="transparent",
-                                hover_color=("gray85", "gray25"),
-                                text_color=("black", "white"),
-                                command=lambda c=contacto: abrir_chat(usuario, c))
-            btn.pack(side="left", fill="x", expand=True)
+                btn = ctk.CTkButton(frame_contacto,
+                                    text=contacto["nombre"],
+                                    anchor="w",
+                                    fg_color="transparent",
+                                    hover_color=("gray85", "gray25"),
+                                    text_color=("black", "white"),
+                                    command=lambda c=contacto: abrir_chat(usuario, c))
+                btn.pack(side="left", fill="x", expand=True)
 
-
+    actualizar_contactos()
     contactos_win.mainloop()
 
 
@@ -482,7 +603,7 @@ def abrir_chat(usuario, contacto):
         mensaje = entry_msg.get()
         if mensaje != "":
             try:
-                cliente.send((usuario["nombre"] + ": " + mensaje).encode())
+                cliente.send((usuario["nombre"] + ": " + mensaje).encode("utf-8"))
                 area.configure(state="normal")
                 area.insert("end", "Tú: " + mensaje + "\n")
                 area.see("end")
