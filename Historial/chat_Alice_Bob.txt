@@ -10,3 +10,5 @@ Bob: excelente
 Tú: que bueno bor 
 Tú: hola
 Bob: hola
+Alice
+Bob

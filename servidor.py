@@ -2,10 +2,10 @@ import socket
 import threading
 
 # Configuración
-HOST = "127.0.0.1"  # IP local de tu propia PC
-PORT = 5555          # puerto de conexión
+HOST = "127.0.0.1"
+PORT = 5555
 
-clientes = []        # lista de clientes conectados
+clientes = []
 
 def manejar_cliente(conn, addr):
     print("Cliente conectado:", addr)
@@ -16,7 +16,8 @@ def manejar_cliente(conn, addr):
                 print("Mensaje recibido:", mensaje)
                 broadcast(mensaje, conn)
         except:
-            clientes.remove(conn)
+            if conn in clientes:
+                clientes.remove(conn)
             conn.close()
             break
 
@@ -33,7 +34,7 @@ servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 servidor.bind((HOST, PORT))
 servidor.listen()
 
-print("Servidor iniciado en", HOST, ":", PORT)
+print(f"Servidor iniciado en {HOST}:{PORT}")
 print("Esperando conexiones...")
 
 while True:

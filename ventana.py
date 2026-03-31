@@ -306,7 +306,7 @@ def abrir_contactos(usuario):
 
             # Botón nombre y estado
             btn = ctk.CTkButton(frame_contacto,
-                                text=contacto["nombre"],
+                                text=contacto["nombre"] ,
                                 anchor="w",
                                 fg_color="transparent",
                                 hover_color=("gray85", "gray25"),

@@ -11,3 +11,9 @@ Tú: hola
 Tú: hola
 Bob
 Bob
+Tú: hola bob
+Tú: digo hola alice 
+Tú: como estas 
+Tú: xd
+Tú: que tal todo 
+Tú: como te tencuentras
